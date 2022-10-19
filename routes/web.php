@@ -18,3 +18,4 @@ Route::get('/', function () {
     return view('welcome');
 });
 Route::resource('student', StudentController::class);
+Route::get('/exportlaporan', 'App\Http\Controllers\StudentController@export');

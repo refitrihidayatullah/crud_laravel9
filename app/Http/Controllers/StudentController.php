@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use App\Models\Student;
 use Illuminate\Validation\Rules\Unique;
+use PDF;
 
 
 class StudentController extends Controller
@@ -16,21 +17,50 @@ class StudentController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
+        // search
+        $keyword = $request->keyword;
+        $rows = 5;
+        if (strlen($keyword)) {
+            $getStudent = DB::table('students')->leftJoin('majors', 'students.major_id', '=', 'majors.major_id')->where('nim', 'like', "%$keyword%")
+                ->orWhere('name', 'like', "%$keyword%")
+                ->orWhere('address', 'like', "%$keyword%")
+                ->paginate($rows);
+            // dd($getStudent);
+        } else {
+            $getStudent = DB::table('students')
+                ->leftJoin('majors', 'students.major_id', '=', 'majors.major_id')
+                ->orderByRaw('student_id DESC')
+                ->paginate($rows);
+            // dd($getStudent);
+
+        }
+
         $getMajor = DB::table('majors')
             ->select('major_id', 'major_name')
             ->get();
-        $getStudent = DB::table('students')
-            ->leftJoin('majors', 'students.major_id', '=', 'majors.major_id')
-            ->orderByRaw('student_id DESC')
-            ->paginate(5);
-        // dd($getStudent);
 
         return view('student.index', [
             'getStudent' => $getStudent,
             'getMajor' => $getMajor
         ]);
+    }
+    public function export()
+    {
+        $rows = 5;
+        $getStudent = DB::table('students')
+            ->leftJoin('majors', 'students.major_id', '=', 'majors.major_id')
+            ->orderByRaw('student_id DESC')
+            ->paginate($rows);
+        $getMajor = DB::table('majors')
+            ->select('major_id', 'major_name')
+            ->get();
+        $data = PDF::loadview('student.laporan_pdf', [
+            'getStudent' => $getStudent,
+            'getMajor' => $getMajor
+        ]);
+        return $data->download('laporan.pdf');
     }
 
     /**
@@ -80,7 +110,11 @@ class StudentController extends Controller
      */
     public function show($id)
     {
-        //
+        $getAllStudent = DB::table('students')
+            ->leftJoin('majors', 'students.major_id', '=', 'majors.major_id')
+            ->where('student_id', $id)->first();
+        // dd($getAllStudent);
+        return view('student.show_student')->with('getAllStudent', $getAllStudent);
     }
 
     /**
@@ -122,6 +156,10 @@ class StudentController extends Controller
      */
     public function destroy($id)
     {
-        //
+        $student = DB::table('students')
+            ->where('student_id', $id)
+            ->delete();
+        // dd($student);
+        return response()->json(['status' => 'Student Deleted Successfully!']);
     }
 }
